@@ -1,30 +1,79 @@
 create database project3 
 use project3
 
--- Suppliers Table:
+----------------------------------- Suppliers Table:
 drop table suppliers
 create table suppliers(
 	supplierId int primary key identity(1,1),
 	supplierCode varchar(50) not null unique,
 	supplierName nvarchar(50) not null
 )
+----------------------------------- Insertion into Supplier
 
--- Customers Table:
+alter table suppliers
+drop constraint UQ__supplier__35C84800C19EDDC6 -- first we need to drop the constraint, only then we can drop the column that corresponds to this constraint
+
+alter table suppliers
+drop column supplierCode
+	
+-- inserting unique supplier names into the suppliers table
+insert into suppliers(suppliername)
+select distinct
+	case 
+		when suppliername like '%plasticpro%' then 'plasticpro inc.'
+		when suppliername like 'steel co%' then 'steelcorp'
+		when suppliername like 'copper co%' then 'copperco'
+		when suppliername like 'alu works%' then 'aluworks'
+		when suppliername like 'globalMetals%' then 'global metals'
+		else suppliername 
+	end 
+from abc_10000 where supplierName is not null
+
+
+select * from suppliers
+
+
+
+
+----------------------------------- Customers Table:
 drop table customers
 create table customers(
 	customerId int primary key identity(1,1),
 	customerCode varchar(50) not null unique,
 	customerName nvarchar(50) not null
 )
+----------------------------------- Insertion into Customers
 
--- materials table:
+alter table customers
+drop constraint UQ__customer__47BC9F2D412427CC
+	
+alter table customers
+drop column customercode
+
+-- inserting data into the customers table
+insert into customers(customername)
+select distinct customername from abc_10000 order by customername
+
+select * from customers
+
+
+
+
+----------------------------------- materials table:
 drop table materials
 create table materials(
 	materialId int primary key identity(1,1),
 	materialName nvarchar(50) not null
 )
+----------------------------------- Insertion into materials:
+insert into materials(materialname)
+select distinct materialname from abc_10000
+select * from materials
 
--- RawMaterial Table:
+
+
+
+----------------------------------- RawMaterial Table:
 drop table rawMaterial
 create table rawMaterial(
 	rawMaterialId int primary key identity(1,1),
@@ -33,174 +82,7 @@ create table rawMaterial(
 	constraint fk_materialName foreign key(MaterialName) references materials,
 	constraint unique_material unique(MaterialName, rawMaterialGrade)
 )
-
-
--- machines:
-drop table machines
-create table machines(
-	machineId int primary key identity(1,1),
-	machineName nvarchar(50) not null
-	)
-
-drop table machineType
-create table machineType(
-	machineTypeId int primary key identity(1,1),
-	machineType nvarchar(50)
-	)
-
-drop table plants
-create table plants(
-	plantId int primary key identity(1,1),
-	plantName varchar(10)
-	)
-
--- Machines Table:
-drop table machionary
-create table machionary(
-	machionaryId int primary key identity(1,1),
-	machineName int,
-	machineType int,
-	plantId int not null,
-	lastMaintenanceDate date,
-	constraint fk_machineName foreign key(machineName) references machines,
-	constraint fk_machineType foreign key(machineType) references machineType,
-	constraint fk_plantId foreign key(plantId) references plants
-)
-
--- Production Table:
-drop table production
-create table production(
-	productionId int primary key identity(1,1),
-	orderDate datetime not null,
-	customerId int not null,
-	componentToproduce nvarchar(50) not null,
-	quantityToproduce int not null,
-	machionaryId int not null,
-	scheduledStartDate datetime not null,
-	scheduledEndDate datetime not null,
-	[status] nvarchar(50) not null,
-	constraint fk_customerId foreign key(customerId) references customers,
-	constraint chk_status check([status] in ('Scheduled', 'In Progress', 'Complete', 'On Hold', 'Cancelled', 'Rework Required', 'Quoted', 'Pending Materials', 'Rework Completed')),
-	constraint chk_order_date check(scheduledStartDate >= orderDate),
-	constraint chk_scheduleSequence check(scheduledEndDate >= scheduledStartDate),
-	constraint fk_machionaryId foreign key(machionaryId) references machionary
-	)
-
-
--- Material Inventory:
-drop table materialInventory
-create table materialInventory(
-	batchId int primary key identity(1,1),
-	originalBatchId nvarchar(50) unique,
-	materialId int not null,
-	supplierId int not null,
-	receivedDate datetime not null,
-	initialQuantity decimal(10,2) not null,
-	remainingQuantity decimal(10,2) not null,
-	unit nvarchar(10) not null,
-	constraint fk_materialId foreign key(materialId) references Materials,
-	constraint fk_supplierId foreign key(supplierId) references suppliers
-
-)
-
--- Material Usage:
-drop table materialusage
-create table materialUsage(
-	usageId int primary key identity(1,1),
-	batchId int not null,
-	productionId int not null,
-	quantityUsed decimal(10,2) not null
-	constraint fk_batchId foreign key(batchId) references materialInventory,
-	constraint fk_productionId foreign key(productionId) references production
-
-)
-
--- Employees:
-drop table employees
-create table employees(
-	employeeId int primary key identity(1,1),
-	employeeName nvarchar(50) not null
-)
-
-
--- Quality check:
-drop table qualityCheck
-create table qualityCheck(
-	qualityCheckId int primary key identity(1,1),
-	originalQualityCheckId nvarchar(50),
-	productionId int not null,
-	inspectorId int not null,
-	checkTimeStamp datetime not null,
-	results nvarchar(10),
-	constraint fk_inspectorId foreign key(inspectorId) references employees,
-	constraint fk_productionId_qualityCheck foreign key(productionId) references production
-)
-
-
--- Migration of data from the original source to my database
-select * from abc_10000
-
--- suppliers:
-	-- analysis:
-
-	select distinct supplierID from abc_10000 order by supplierID
-	select distinct supplierName from abc_10000 
-	select distinct supplierID, supplierName from abc_10000 order by supplierID
-
-	-- this tells us there exist a many-to-many relationship between supplierID and supplierName, therefore we can just drop the supplierCode column as it's not unqiuely identifying 
-	-- the suppliers.
-	alter table suppliers
-	drop constraint UQ__supplier__35C84800C19EDDC6 -- first we need to drop the constraint, only then we can drop the column that corresponds to this constraint
-
-	alter table suppliers
-	drop column supplierCode
-
-	
-	-- inserting unique supplier names into the suppliers table
-	insert into suppliers(suppliername)
-	select distinct
-		case 
-			when suppliername like '%plasticpro%' then 'plasticpro inc.'
-			when suppliername like 'steel co%' then 'steelcorp'
-			when suppliername like 'copper co%' then 'copperco'
-			when suppliername like 'alu works%' then 'aluworks'
-			when suppliername like 'globalMetals%' then 'global metals'
-			else suppliername 
-		end 
-	from abc_10000 where supplierName is not null
-
-
-	select * from suppliers
-
-
--- customers:
-select * from abc_10000
-
-	-- analysis:
-	select distinct customerorderid from abc_10000
-	select distinct customername from abc_10000
-
-	-- it seems that the customerorderId given in the original table works in batches, as one customerorderId is associated with multiple customers.
-	-- so we drop the customercode from the customers table in the same way we dropped the previous column from suppliers table.
-
-	alter table customers
-	drop constraint UQ__customer__47BC9F2DC15C9AC4
-	
-	alter table customers
-	drop column customercode
-
-	-- inserting data into the customers table
-	insert into customers(customername)
-	select distinct customername from abc_10000 order by customername
-
-	select * from customers
-
--- materials:
-insert into materials(materialname)
-select distinct materialname from abc_10000
-select * from materials
-
--- rawMaterial:
+----------------------------------- Insertion into rawMaterial:
 select * from abc_10000
 	-- analysis:
 	select distinct materialname, materialgrade from abc_10000 order by materialname, materialgrade
@@ -212,12 +94,31 @@ select * from abc_10000
 		on m.materialname = a.materialname
 	order by m.materialId
 
-	
--- machines:
+
+
+
+----------------------------------- machines:
+drop table machines
+create table machines(
+	machineId int primary key identity(1,1),
+	machineName nvarchar(50) not null
+	)
+----------------------------------- Insertion into machines:
 insert into machines(machineName)
 select distinct machineName from abc_10000
 
--- machineType:
+
+
+
+
+----------------------------------- MachineType
+
+drop table machineType
+create table machineType(
+	machineTypeId int primary key identity(1,1),
+	machineType nvarchar(50)
+	)
+----------------------------------- Insertion into machineType:
 insert into machineType(machineType)
 select distinct machineType from abc_10000
 
@@ -232,18 +133,39 @@ join machineType mt
 order by m.machineId, mt.machineTypeId, a.LastMaintenanceDate
 
 
-insert into machines(machineName)
-select distinct right(machineName, len(machineName)-3) from abc_10000
 
+
+
+----------------------------------- Plants Table
+drop table plants
+create table plants(
+	plantId int primary key identity(1,1),
+	plantName varchar(10)
+	)
+----------------------------------- Insertion into plants
 insert into plants(plantName)
 select distinct left(machineName, 2) from abc_10000
 
-select * from machines
-select * from machineType
-select * from plants
+
+
+
+
+----------------------------------- Machionary Table:
+drop table machionary
+create table machionary(
+	machionaryId int primary key identity(1,1),
+	machineName int,
+	machineType int,
+	plantId int not null,
+	lastMaintenanceDate date,
+	constraint fk_machineName foreign key(machineName) references machines,
+	constraint fk_machineType foreign key(machineType) references machineType,
+	constraint fk_plantId foreign key(plantId) references plants
+)
+----------------------------------- Insertion into machionary
 
 insert into machionary(machineName, machineType, plantId, lastMaintenanceDate)
-select m.machineId, mt.machineTypeId, p.plantId, max(try_convert(date, lastMaintenanceDate)) from machineType mt
+select distinct m.machineId, mt.machineTypeId, p.plantId, max(try_convert(date, lastMaintenanceDate)) from machineType mt
 join abc_10000 a
 	on mt.machineType = a.machineType
 join machines m
@@ -253,23 +175,103 @@ join plants p
 group by m.machineId, mt.machineTypeId, p.plantId
 
 
--- Material Inventory
+----------------------------------- Batches:
+drop table [batches]
+create table [batches](
+	batch_id int primary key identity(1,1),
+	batch_name varchar(20) 
+)
 
-select distinct RawMaterialBatchId from abc_10000
 
--- checking whether the alphabets are impurity or not
-select distinct left(RawMaterialBatchId,7) from abc_10000 --implies the alphabets could be or could be not an impurity as the number of items in the colunn are same before and 
--- after adding the alphabets. so we can just remove them.
+----------------------------------- Inserting into batch
+insert into [batches](batch_name)
+select distinct left(RawMaterialBatchID, 7) from ABC_10000 
 
 
-select r.rawMaterialId, 
+----------------------------------- Production Table:
+drop table production
+create table production(
+	productionId int primary key identity(1,1),
+	orderDate datetime not null,
+	customerId int not null,
+	componentToproduce nvarchar(50) not null,
+	quantityToproduce float not null,
+	machionaryId int not null,
+	scheduledStartDate datetime not null,
+	scheduledEndDate datetime not null,
+	[status] nvarchar(50) not null,
+	plantId int not null,
+	constraint fk_customerId foreign key(customerId) references customers,
+	constraint chk_status check([status] in ('Scheduled', 'In Progress', 'Completed', 'On Hold', 'Cancelled', 'Rework Required', 'Quoted', 'Pending Materials', 'Rework Complete')),
+	constraint chk_order_date check(scheduledStartDate >= orderDate),
+	constraint chk_scheduleSequence check(scheduledEndDate > scheduledStartDate),
+	constraint fk_prod_plant foreign key(plantId) references plants,
+	constraint fk_machionaryId foreign key(machionaryId) references machionary
+	)
+----------------------------------- Insertion into Productions table
+
+insert into production(OrderDate, customerId, ComponentToProduce, QuantityToProduce, machionaryId, ScheduledStartDate, ScheduledEndDate, [Status], plantId)
+select distinct 
+	coalesce(try_convert(datetime, a.OrderDate, 105), 
+			try_convert(datetime, a.OrderDate, 110), NULL) as OrderDate,
+			c.customerId, a.ComponentToProduce, a.QuantityToProduce, mm.machionaryId, 
+			try_convert(datetime, a.ScheduledStart, 105) as ScheduledStartDate, 
+			try_convert(datetime, a.ScheduledEnd, 105) as ScheduledEndDate,  a.Status, p.plantId
+from ABC_10000 a
+join customers c
+	on c.customerName = a.customerName 
+join machines m
+	on m.machineName = substring(a.MachineName, charindex('-', a.machineName)+1, len(a.MachineName))
+join machineType mt 
+	on mt.machineType = a.MachineType
+join plants p
+	on p.plantName = left(a.MachineName, 2)
+join machionary mm 
+	on (mm.machineName = m.machineId) and
+	    (mm.machineType = mt.machineTypeId) and
+		(mm.plantId = p.plantId)
+where (try_convert(datetime, a.ScheduledStart, 105) < try_convert(datetime, a.ScheduledEnd, 105)) and 
+		(try_convert(datetime, a.ScheduledStart, 105) 
+			>= 
+		(coalesce(try_convert(datetime, a.OrderDate, 105), try_convert(datetime, a.OrderDate, 110), NULL)))
+
+
+
+----------------------------------- Material Inventory:
+drop table materialInventory
+create table materialInventory(
+	materialInventoryId int primary key identity(1,1),
+	originalBatchId nvarchar(50),
+	rawmaterialId int not null,
+	supplierId int not null,
+	receivedDate date not null,
+	initialQuantity decimal(10,2) not null,
+	remainingQuantity decimal(10, 2) null,
+	unit nvarchar(10) not null,
+	constraint fk_rawMaterialId foreign key(rawMaterialId) references rawMaterial,
+	constraint fk_supplierId foreign key(supplierId) references suppliers,
+	constraint chk_unit check(unit in ('KG', 'M', 'PCS', 'FT', 'SQ_FT', 'LBS'))
+
+)
+----------------------------------- Insertion into Material Inventory
+select * from materialInventory
+insert into materialInventory(originalBatchId, rawMaterialId, supplierId, receivedDate, initialQuantity, unit)
+select left(a.RawMaterialBatchID, 7) as originalBatchId,
+	   r.rawMaterialId,
 	   s.supplierId, 
-	   a.RawMaterialBatchId, 
-	   receiveDate, 
-	   cast(replace(replace(InitialQuantity, ',', ''), '$', '') as float), 
-	   unit, 
-	   cast(replace(QuantityToProduce, ',', '') as float),
-	   (cast(replace(replace(InitialQuantity, ',', ''), '$', '') as float) - cast(replace(QuantityToProduce, ',', '') as float)) as remainingQuantity  from rawmaterial r
+	   try_convert(date, receiveDate, 105) as receivedDate, 
+	   cast(replace(replace(InitialQuantity, ',', ''), '$', '') as float) as initialQuantity,
+	   case 
+		when upper(trim(unit)) in ('KG', 'KILOGRAM', 'KGS') THEN 'KG'
+		when upper(trim(unit)) in ('M', 'METERS', 'METER') THEN 'M'
+		when upper(trim(unit)) in ('FT', 'FEET') THEN 'FT'
+		when upper(trim(unit)) in ('PCS', 'PIECES') THEN 'PCS'
+		when upper(trim(unit)) in ('LBS') THEN 'LBS'
+		when upper(trim(unit)) in ('SQ FT', 'SQUARE FEET') THEN 'SQ_FT'
+		ELSE NULL
+	END AS unit  
+   from rawmaterial r
+
 join materials m 
 	on r.materialName = m.materialId
 join abc_10000 a
@@ -278,4 +280,93 @@ join abc_10000 a
 join suppliers s
 	on left(s.supplierName, 4) = left(a.supplierName, 4)
 
-select distinct receiveDate from abc_10000 
+
+UPDATE mi
+SET mi.remainingQuantity =
+    CASE 
+        WHEN mi.initialQuantity - COALESCE(mu.quantityUsed, 0) < 0 THEN 0
+        ELSE mi.initialQuantity - COALESCE(mu.quantityUsed, 0)
+    END
+FROM materialInventory mi
+left join [batches] b
+	on mi.originalBatchId = b.batch_name
+left join rawMaterial r
+	on r.rawMaterialId = mi.rawMaterialId
+left join materialUsage mu
+	on (b.batch_id = mu.batchid) and 
+	(r.materialName = mu.materialId)
+	
+
+
+
+
+----------------------------------- Material Usage:
+drop table materialusage
+create table materialUsage(
+	usageId int primary key identity(1,1),
+	batchId int not null,
+	materialId int not null,
+	productionId int not null,
+	quantityUsed decimal(10,2) null
+	constraint fk_UsageMaterialId foreign key(MaterialId) references Materials,
+	constraint fk_productionId foreign key(productionId) references production,
+	constraint fk_batch_id foreign key(batchId) references [batches]
+
+)
+---------------------------- Insertion into materialUsage
+insert into materialUsage(batchId, productionId, materialId, quantityUsed)
+select b.batch_Id, p.productionId, m.materialId, a.QuantityUsed
+from ABC_10000 a
+inner join materials m	
+	on a.materialName = m.materialName
+inner join [batches] b
+	on b.batch_name = a.MaterialUsedBatchID
+inner join production p
+	on (p.quantityToproduce = a.QuantityToProduce) and
+	(cast(p.scheduledStartDate as varchar(50)) = cast(try_convert(datetime, a.ScheduledStart, 105) as varchar(50)))
+where QuantityUsed is not Null
+
+
+select * from materialUsage
+-- DBCC CHECKIDENT ('materialUsage', RESEED, 1);
+
+
+
+
+
+----------------------------------- Employees:
+drop table employees
+create table employees(
+	employeeId int primary key identity(1,1),
+	employeeName nvarchar(50) not null,
+	[role] nvarchar(50) not null
+)
+
+
+insert into employees (employeeName, [role])
+select FullName, [role] from employee
+
+
+select * from employees
+
+
+
+
+----------------------------------- Quality check:
+drop table qualityCheck
+create table qualityCheck(
+	qualityCheckId int primary key identity(1,1),
+	originalQualityCheckId nvarchar(50),
+	productionId int not null,
+	inspectorId int not null,
+	checkTimeStamp datetime not null,
+	results nvarchar(10),
+	constraint fk_inspectorId foreign key(inspectorId) references employees,
+	constraint fk_productionId_qualityCheck foreign key(productionId) references production
+)
+
+
+
+
+
+
