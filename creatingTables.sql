@@ -105,14 +105,13 @@ create table machines(
 	)
 ----------------------------------- Insertion into machines:
 insert into machines(machineName)
-select distinct machineName from abc_10000
+select distinct right(machineName, len(machineName)-3)  from abc_10000
 
 
 
 
 
------------------------------------ MachineType
-
+----------------------------------- MachineType)
 drop table machineType
 create table machineType(
 	machineTypeId int primary key identity(1,1),
@@ -174,6 +173,8 @@ join plants p
 	on p.plantName = left(a.machineName,2)
 group by m.machineId, mt.machineTypeId, p.plantId
 
+
+select * from machionary
 
 ----------------------------------- Batches:
 drop table [batches]
@@ -290,12 +291,9 @@ SET mi.remainingQuantity =
 FROM materialInventory mi
 left join [batches] b
 	on mi.originalBatchId = b.batch_name
-left join rawMaterial r
-	on r.rawMaterialId = mi.rawMaterialId
 left join materialUsage mu
 	on (b.batch_id = mu.batchid) and 
-	(r.materialName = mu.materialId)
-	
+	(mi.rawMaterialId = mu.rawMaterialId)
 
 
 
@@ -305,20 +303,23 @@ drop table materialusage
 create table materialUsage(
 	usageId int primary key identity(1,1),
 	batchId int not null,
-	materialId int not null,
+	rawMaterialId int not null,
 	productionId int not null,
 	quantityUsed decimal(10,2) null
-	constraint fk_UsageMaterialId foreign key(MaterialId) references Materials,
+	constraint fk_rawUsageMaterialId foreign key(rawMaterialId) references rawMaterial,
 	constraint fk_productionId foreign key(productionId) references production,
 	constraint fk_batch_id foreign key(batchId) references [batches]
 
 )
 ---------------------------- Insertion into materialUsage
-insert into materialUsage(batchId, productionId, materialId, quantityUsed)
+insert into materialUsage(batchId, productionId, rawmaterialId, quantityUsed)
 select b.batch_Id, p.productionId, m.materialId, a.QuantityUsed
 from ABC_10000 a
-inner join materials m	
+inner join materials m
 	on a.materialName = m.materialName
+inner join rawmaterial r	
+	on m.materialId= r.materialName
+	and a.materialGrade = r.rawMaterialGrade
 inner join [batches] b
 	on b.batch_name = a.MaterialUsedBatchID
 inner join production p
@@ -359,14 +360,36 @@ create table qualityCheck(
 	originalQualityCheckId nvarchar(50),
 	productionId int not null,
 	inspectorId int not null,
-	checkTimeStamp datetime not null,
+	checkTimeStamp datetime null,
 	results nvarchar(10),
 	constraint fk_inspectorId foreign key(inspectorId) references employees,
 	constraint fk_productionId_qualityCheck foreign key(productionId) references production
 )
 
+insert into qualityCheck(originalQualityCheckId, productionId, inspectorId, checkTimeStamp, results)
+select a.QualityCheckId, p.productionId, e.employeeId, coalesce(try_convert(datetime, a.CheckTimestamp, 105), try_convert(datetime, a.checkTimeStamp, 110)),
+		a.Result from ABC_10000 a
+join production p
+	on (p.quantityToproduce = a.QuantityToProduce) and
+	(cast(p.scheduledStartDate as varchar(50)) = cast(try_convert(datetime, a.ScheduledStart, 105) as varchar(50)))
+join employees e
+	on e.employeeName = a.InspectorName
+where QualityCheckId is not null
 
 
 
+
+
+--------------------------------------------- END 
+
+
+
+
+
+
+
+
+
+ 
 
 
